@@ -8,3 +8,5 @@ body {padding: 0; margin: 0;}
 #canvas-holder {
 	position: fixed;
 }
+
+p { padding: 8; margin: 4; }
