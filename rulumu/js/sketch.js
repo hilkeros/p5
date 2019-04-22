@@ -1,17 +1,22 @@
+let data;
 let scrollX;
 let scrollY;
+let blue;
 let song;
-let triggered = false;
+let startButton;
+let startButtonColor = 0;
+let running = false;
+let sceneIndex = 0;
 
 function preload() {
-  data = loadJSON('json/wac.json')
+  data = loadJSON('json/paradoxes1.json')
 }
 function setup() {
   let canvas = createCanvas(windowWidth, windowHeight);
   canvas.parent('canvas-holder');
-  background(0);
+  Tone.Transport.bpm.value = 90;
   song = new Song(data);
-  Tone.Transport.bpm.value = 80;
+  blue = 120;
 }
 
 function windowResized() {
@@ -21,17 +26,31 @@ function windowResized() {
 function draw() {
   scrollX = window.pageXOffset;
   scrollY = window.pageYOffset;
-  
-  if (scrollY < 1000) {
-    scene1();
-  } else if (scrollY < 2000) {
-    scene2();
-  } else {
-    scene3();
+  background(250, 140, blue);
+
+  noStroke();
+  fill(startButtonColor);
+  startButton = ellipse(300, 25, 40, 40);
+
+  blue = 120 + scrollY/300;
+
+  if (running == true){ 
+    if (scrollY < 1000) {
+      scene0();
+    } else if (scrollY < 2000) {
+      scene1();
+    } else if (scrollY < 3000){
+      scene2();
+    }
+    else {
+      scene3();
+    }
   }
 
   showScrollPosition();
+  showScenePosition();
 }
+
 
 function showScrollPosition(){
   textSize(32);
@@ -39,41 +58,75 @@ function showScrollPosition(){
   text('X: ' + scrollX + '/ Y: ' + scrollY, 30, 30);
 }
 
+function showScenePosition(){
+  textSize(32);
+  fill(255);
+  text(sceneIndex, 350, 30);
+}
+
+function mouseClicked(){
+  if (running == false) {
+  startButtonColor = 255;
+  running = true;
+  Tone.Transport.start();
+  song.startScene(0);
+  } else {
+    startButtonColor = 0;
+    running = false;
+    Tone.Transport.stop();
+  }
+}
+
+function scene0(){
+  sceneIndex = 0;
+  song.startScene(0);
+}
+
 function scene1(){
-  background(0);
+  sceneIndex = 1;
+  song.startScene(1);
 }
 
 
 function scene2(){
-  background(255, 0, 0);
-  Tone.Transport.start();
-  if (!triggered) {
-    song.startPart(0, 0);
-    print('triggered');
-  }
-  triggered = true;
+  sceneIndex = 2;
+  song.startScene(2);
 }
 
 
-// function scene3(){
-//   background(255, 230, 0);
-//   let triggered = false;
-//   if (!triggered) {
-//     song.startPart(1, 0);
-//   }
-//   triggered = true;
-// }
+function scene3(){
+  sceneIndex = 3;
+  song.startScene(3);
+}
 
 class Song {
   constructor(json_data) {
     this.tracks = json_data.ableton.tracks;
     this.instruments = [];
+    this.scenes_switches = [];
+    this.volumes = json_data.knobs.volumes;
+    this.sends = json_data.knobs.sends
+
+    this.send_1 = new Tone.JCReverb(0.7);
+    this.send_1.receive('reverb').toMaster();
+    this.send_2 = new Tone.FeedbackDelay('4t', 0.8);
+    this.send_2.receive('delay').toMaster();
+    
     for (let i = 0; i < this.tracks.length; i++) {
       
       //set up instruments
-      let mapping = this.tracks[i].drum_rack;
-      let instrument = new Tone.Sampler(mapping, function(){
-      }, 'sounds/wac/');
+      let instrument;
+      if (Object.keys(this.tracks[i].drum_rack).length > 0){
+         let mapping = this.tracks[i].drum_rack;
+         instrument = new Tone.Sampler(mapping, function(){
+          }, 'sounds/paradoxes/');
+      } else {
+        let file = this.tracks[i].simpler.file;
+        let mapping = {'C3': file};
+         instrument = new Tone.Sampler(mapping, function(){
+          }, 'sounds/paradoxes/');
+      }
+      
 
       instrument.toMaster();
 
@@ -83,20 +136,65 @@ class Song {
       for (let j = 0; j < events.length; j++) {
         let part_events = to_tone_values(events[j]);
         instrument.parts[j] = new Tone.Part(function(time, event) {
-          instrument.triggerAttackRelease(event.note, event.duration, time)
-        }, part_events, true)
+          instrument.triggerAttackRelease(event.note, event.duration, time, event.velocity)
+        }, part_events);
+        instrument.parts[j].loop = true;
+        instrument.parts[j].loopEnd = '8m';
       }
 
       //add instrument to song
       this.instruments.push(instrument);
+      //set the volume from the knobs from the json data
+      instrument.volume.value = this.volumes[i];
+      //link to send bus
+      instrument.send_1 = instrument.send('reverb', this.sends[i]);
+      instrument.send_2 = instrument.send('delay', -Infinity);
+      instrument.send_1 = instrument.send('reverb', this.sends[i + this.instruments.length]);
+    }
+    //set all scene triggers to false
+    for(let i = 0; i < this.instruments[0].parts.length; i++) {
+      this.scenes_switches[i] = false;
     }
   }
 
   startPart(instrument_index, part_index) {
     let part = this.instruments[instrument_index].parts[part_index]
-    part.loop = true;
     part.start('@1m');
-    print('part started');  
+    // print('instrument ' + instrument_index + ' part ' + part_index + ' started');
+  }
+
+  stopPart(instrument_index, part_index) {
+    let part = this.instruments[instrument_index].parts[part_index]
+    part.stop('@1m');
+    // print('instrument ' + instrument_index + ' part ' + part_index + ' stopped');  
+  }
+
+  startPartInSession(instrument_index, part_index) {
+    let instrument = this.instruments[instrument_index];
+    //start the part with the part_index and stop all other parts of this instrument
+    for (let p = 0; p < instrument.parts.length; p++) {
+      if (part_index == p) {
+        this.startPart(instrument_index, p)
+      } else {
+        this.stopPart(instrument_index, p)
+      }
+    }
+  }
+
+  startScene(index = 0) {
+    if (this.scenes_switches[index] == false) {
+      
+      for ( let s = 0; s < this.scenes_switches.length; s++){
+        if (s == index) {
+          this.scenes_switches[s] = true;
+        } else {
+          this.scenes_switches[s] = false;
+        }
+      }
+      for (let i = 0; i < this.instruments.length; i++) {
+        this.startPartInSession(i, index);  
+      }
+    }
   }
 }
 
