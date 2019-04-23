@@ -9,7 +9,7 @@ let running = false;
 let sceneIndex = 0;
 
 function preload() {
-  data = loadJSON('json/paradoxes1.json')
+  data = loadJSON('json/paradoxes2.json')
 }
 function setup() {
   let canvas = createCanvas(windowWidth, windowHeight);
@@ -132,14 +132,14 @@ class Song {
 
       //set up parts
       instrument.parts = [];
-      let events = this.tracks[i].events;
-      for (let j = 0; j < events.length; j++) {
-        let part_events = to_tone_values(events[j]);
+      let parts = this.tracks[i].parts;
+      for (let j = 0; j < parts.length; j++) {
+        let part_events = to_tone_values(parts[j].events);
         instrument.parts[j] = new Tone.Part(function(time, event) {
           instrument.triggerAttackRelease(event.note, event.duration, time, event.velocity)
         }, part_events);
         instrument.parts[j].loop = true;
-        instrument.parts[j].loopEnd = '8m';
+        instrument.parts[j].loopEnd = parts[j].loop_end;
       }
 
       //add instrument to song
