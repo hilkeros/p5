@@ -3,13 +3,15 @@ let scrollX;
 let scrollY;
 let blue;
 let song;
+let loop_length = '4m';
 let startButton;
 let startButtonColor = 0;
 let running = false;
 let sceneIndex = 0;
+let dino;
 
 function preload() {
-  data = loadJSON('json/paradoxes2.json')
+  data = loadJSON('json/paradoxes3.json')
 }
 function setup() {
   let canvas = createCanvas(windowWidth, windowHeight);
@@ -17,6 +19,8 @@ function setup() {
   Tone.Transport.bpm.value = 90;
   song = new Song(data);
   blue = 120;
+  dino = new Tone.Player('sounds/paradoxes/verse-dino.mp3');
+  dino.toMaster();
 }
 
 function windowResized() {
@@ -35,16 +39,21 @@ function draw() {
   blue = 120 + scrollY/300;
 
   if (running == true){ 
-    if (scrollY < 1000) {
-      scene0();
-    } else if (scrollY < 2000) {
-      scene1();
-    } else if (scrollY < 3000){
-      scene2();
-    }
-    else {
-      scene3();
-    }
+    // if (scrollY < 1000) {
+    //   scene0();
+    // } else if (scrollY < 2000) {
+    //   scene1();
+    // } else if (scrollY < 3000){
+    //   scene2();
+    // }
+    // else {
+    //   scene3();
+    // }
+    sceneIndex = round(scrollY/1000);
+    song.startScene(sceneIndex);
+    // if (sceneIndex == 0 && dino.state != 'started') {
+    //   dino.start()
+    // }
   }
 
   showScrollPosition();
@@ -149,7 +158,7 @@ class Song {
       //link to send bus
       instrument.send_1 = instrument.send('reverb', this.sends[i]);
       instrument.send_2 = instrument.send('delay', -Infinity);
-      instrument.send_1 = instrument.send('reverb', this.sends[i + this.instruments.length]);
+      instrument.send_1 = instrument.send('reverb', this.sends[i + this.instruments.length]); 
     }
     //set all scene triggers to false
     for(let i = 0; i < this.instruments[0].parts.length; i++) {
@@ -159,13 +168,13 @@ class Song {
 
   startPart(instrument_index, part_index) {
     let part = this.instruments[instrument_index].parts[part_index]
-    part.start('@1m');
+    part.start(loop_length);
     // print('instrument ' + instrument_index + ' part ' + part_index + ' started');
   }
 
   stopPart(instrument_index, part_index) {
     let part = this.instruments[instrument_index].parts[part_index]
-    part.stop('@1m');
+    part.stop(loop_length);
     // print('instrument ' + instrument_index + ' part ' + part_index + ' stopped');  
   }
 
