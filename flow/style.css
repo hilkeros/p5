@@ -1,0 +1,11 @@
+body {padding: 0; margin: 0;}
+
+#big-container {
+	height: 90000px;
+	width:	90000px;
+	/*cursor: none;*/
+}
+
+#canvas-holder {
+	position: fixed;
+}

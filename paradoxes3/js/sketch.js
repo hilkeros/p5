@@ -1,8 +1,8 @@
 let bigBody;
 let imageSize;
 let mySound;
-let imageXOffset = 400;
-let imageYOffset = 500;
+let imageXOffset = 0;
+let imageYOffset = 0;
 let xNoise = 0;
 let yNoise = 0;
 let xoff = 0;
