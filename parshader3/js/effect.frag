@@ -7,6 +7,7 @@ varying vec2 vTexCoord;
 uniform sampler2D tex0;
 uniform float scrollX;
 uniform float scrollY;
+uniform float time;
 
 void main() {
 
@@ -15,7 +16,10 @@ void main() {
   uv = 1.0 - uv;
   uv = uv + vec2(0.5 - scrollX/5000.0, scrollY/5000.0);
 
-  vec4 body = texture2D(tex0, uv/2.0);
+  float sineWave = sin(uv.y * 2.0 + time/10.0) /200.0;
+  vec2 distort = vec2(sineWave, sineWave);
+
+  vec4 body = texture2D(tex0, uv/2.0 + distort);
 
   // output the image
   gl_FragColor = body;
